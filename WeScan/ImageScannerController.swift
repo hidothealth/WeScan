@@ -57,9 +57,12 @@ public final class ImageScannerController: UINavigationController {
     }()
     
     public required init(image: UIImage? = nil, delegate: ImageScannerControllerDelegate? = nil) {
-        super.init(rootViewController: ScannerViewController())
-        
+        let scannerViewController = ScannerViewController()
+
+        super.init(rootViewController: scannerViewController)
+
         self.imageScannerDelegate = delegate
+        scannerViewController.scannerViewControllerDelegate = self
         
         navigationBar.tintColor = .black
         navigationBar.isTranslucent = false
@@ -130,6 +133,44 @@ public final class ImageScannerController: UINavigationController {
         }
     }
     
+}
+
+extension ImageScannerController: ScannerViewControllerDelegate {
+
+    public func scannerViewControllerDidCapturePicture(_ scannerViewController: ScannerViewController, picture: UIImage, quad: Quadrilateral?) {
+        let editVC = EditScanViewController(image: picture, quad: quad)
+        editVC.editScanViewControllerDelegate = self
+        pushViewController(editVC, animated: false)
+    }
+
+    public func scannerViewControllerDidFailWithError(_ scannerViewController: ScannerViewController, error: Error) {
+        imageScannerDelegate?.imageScannerController(self, didFailWithError: error)
+    }
+
+    public func scannerViewControllerDidCancel(_ scannerViewController: ScannerViewController) {
+        imageScannerDelegate?.imageScannerControllerDidCancel(self)
+    }
+
+    public func scannerViewControllerDidRequestFlashToBlack(
+        _ scannerViewController: ScannerViewController
+    ) {
+        flashToBlack()
+    }
+
+}
+
+extension ImageScannerController: EditScanViewControllerDelegate {
+
+    public func editScanViewControllerDidComplete(
+        _ editScanViewController: EditScanViewController,
+        results: ImageScannerResults
+    ) {
+
+        let reviewViewController = ReviewViewController(results: results)
+        pushViewController(reviewViewController, animated: true)
+    }
+
+
 }
 
 /// Data structure containing information about a scan.

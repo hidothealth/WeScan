@@ -9,11 +9,38 @@
 import UIKit
 import AVFoundation
 
+
+public protocol ScannerViewControllerDelegate: NSObjectProtocol {
+
+    func scannerViewControllerDidCapturePicture(
+        _ scannerViewController: ScannerViewController,
+        picture: UIImage,
+        quad: Quadrilateral?
+    )
+
+    func scannerViewControllerDidFailWithError(
+        _ scannerViewController: ScannerViewController,
+        error: Error
+    )
+
+    func scannerViewControllerDidCancel(
+        _ scannerViewController: ScannerViewController
+    )
+
+    func scannerViewControllerDidRequestFlashToBlack(
+        _ scannerViewController: ScannerViewController
+    )
+
+}
+
+
 /// The `ScannerViewController` offers an interface to give feedback to the user regarding quadrilaterals that are detected. It also gives the user the opportunity to capture an image with a detected rectangle.
-final class ScannerViewController: UIViewController {
+public final class ScannerViewController: UIViewController {
     
     private var captureSessionManager: CaptureSessionManager?
     private let videoPreviewLayer = AVCaptureVideoPreviewLayer()
+
+    public weak var scannerViewControllerDelegate: ScannerViewControllerDelegate?
     
     /// The view that shows the focus rectangle (when the user taps to focus, similar to the Camera app)
     private var focusRectangle: FocusRectangleView!
@@ -22,7 +49,7 @@ final class ScannerViewController: UIViewController {
     private let quadView = QuadrilateralView()
     
     /// The visual effect (blur) view used on the navigation bar
-    private let visualEffectView = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
+    private lazy var visualEffectView = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
     
     /// Whether flash is enabled
     private var flashEnabled = false
@@ -70,7 +97,7 @@ final class ScannerViewController: UIViewController {
 
     // MARK: - Life Cycle
 
-    override func viewDidLoad() {
+    override public func viewDidLoad() {
         super.viewDidLoad()
         
         title = nil
@@ -85,9 +112,11 @@ final class ScannerViewController: UIViewController {
         originalBarStyle = navigationController?.navigationBar.barStyle
         
         NotificationCenter.default.addObserver(self, selector: #selector(subjectAreaDidChange), name: Notification.Name.AVCaptureDeviceSubjectAreaDidChange, object: nil)
+
+        hidesBottomBarWhenPushed = true
     }
     
-    override func viewWillAppear(_ animated: Bool) {
+    override public func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         setNeedsStatusBarAppearanceUpdate()
         
@@ -96,18 +125,20 @@ final class ScannerViewController: UIViewController {
         captureSessionManager?.start()
         UIApplication.shared.isIdleTimerDisabled = true
 
+        navigationController?.setNavigationBarHidden(false, animated: animated)
         navigationController?.navigationBar.isTranslucent = true
         navigationController?.navigationBar.setBackgroundImage(UIImage(), for: .default)
         navigationController?.navigationBar.addSubview(visualEffectView)
         navigationController?.navigationBar.sendSubviewToBack(visualEffectView)
-        
-        navigationController?.navigationBar.barStyle = .blackTranslucent
+
+//        navigationController?.navigationBar.barStyle = .blackTranslucent
     }
     
-    override func viewDidLayoutSubviews() {
+    override public func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         
         videoPreviewLayer.frame = view.layer.bounds
+        navigationController?.navigationBar.sendSubviewToBack(visualEffectView)
         
         let statusBarHeight = UIApplication.shared.statusBarFrame.size.height
         let visualEffectRect = self.navigationController?.navigationBar.bounds.insetBy(dx: 0, dy: -(statusBarHeight)).offsetBy(dx: 0, dy: -statusBarHeight)
@@ -115,7 +146,7 @@ final class ScannerViewController: UIViewController {
         visualEffectView.frame = visualEffectRect ?? CGRect.zero
     }
     
-    override func viewWillDisappear(_ animated: Bool) {
+    override public func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         UIApplication.shared.isIdleTimerDisabled = false
         
@@ -215,7 +246,7 @@ final class ScannerViewController: UIViewController {
         CaptureSession.current.removeFocusRectangleIfNeeded(focusRectangle, animated: true)
     }
     
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesBegan(touches, with: event)
         
         guard  let touch = touches.first else { return }
@@ -240,7 +271,7 @@ final class ScannerViewController: UIViewController {
     // MARK: - Actions
     
     @objc private func captureImage(_ sender: UIButton) {
-        (navigationController as? ImageScannerController)?.flashToBlack()
+        scannerViewControllerDelegate?.scannerViewControllerDidRequestFlashToBlack(self)
         shutterButton.isUserInteractionEnabled = false
         captureSessionManager?.capturePhoto()
     }
@@ -278,8 +309,7 @@ final class ScannerViewController: UIViewController {
     }
     
     @objc private func cancelImageScannerController() {
-        guard let imageScannerController = navigationController as? ImageScannerController else { return }
-        imageScannerController.imageScannerDelegate?.imageScannerControllerDidCancel(imageScannerController)
+        scannerViewControllerDelegate?.scannerViewControllerDidCancel(self)
     }
     
 }
@@ -289,9 +319,8 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
         
         activityIndicator.stopAnimating()
         shutterButton.isUserInteractionEnabled = true
-        
-        guard let imageScannerController = navigationController as? ImageScannerController else { return }
-        imageScannerController.imageScannerDelegate?.imageScannerController(imageScannerController, didFailWithError: error)
+
+        scannerViewControllerDelegate?.scannerViewControllerDidFailWithError(self, error: error)
     }
     
     func didStartCapturingPicture(for captureSessionManager: CaptureSessionManager) {
@@ -302,8 +331,7 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
     func captureSessionManager(_ captureSessionManager: CaptureSessionManager, didCapturePicture picture: UIImage, withQuad quad: Quadrilateral?) {
         activityIndicator.stopAnimating()
         
-        let editVC = EditScanViewController(image: picture, quad: quad)
-        navigationController?.pushViewController(editVC, animated: false)
+        scannerViewControllerDelegate?.scannerViewControllerDidCapturePicture(self, picture: picture, quad: quad)
         
         shutterButton.isUserInteractionEnabled = true
     }
