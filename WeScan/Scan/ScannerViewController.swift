@@ -130,8 +130,7 @@ public final class ScannerViewController: UIViewController {
         navigationController?.navigationBar.setBackgroundImage(UIImage(), for: .default)
         navigationController?.navigationBar.addSubview(visualEffectView)
         navigationController?.navigationBar.sendSubviewToBack(visualEffectView)
-
-//        navigationController?.navigationBar.barStyle = .blackTranslucent
+        navigationController?.navigationBar.titleTextAttributes = [.foregroundColor: UIColor.white]
     }
     
     override public func viewDidLayoutSubviews() {
