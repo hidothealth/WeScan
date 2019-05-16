@@ -209,7 +209,9 @@ public final class ScannerViewController: UIViewController {
         if #available(iOS 11.0, *) {
             cancelButtonConstraints = [
                 cancelButton.leftAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leftAnchor, constant: 24.0),
-                view.safeAreaLayoutGuide.bottomAnchor.constraint(equalTo: cancelButton.bottomAnchor, constant: (65.0 / 2) - 10.0)
+                cancelButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 100),
+                cancelButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 60),
+                cancelButton.centerYAnchor.constraint(equalTo: shutterButton.centerYAnchor)
             ]
             
             let shutterButtonBottomConstraint = view.safeAreaLayoutGuide.bottomAnchor.constraint(equalTo: shutterButton.bottomAnchor, constant: 8.0)
