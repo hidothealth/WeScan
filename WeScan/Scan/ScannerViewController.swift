@@ -56,6 +56,8 @@ public final class ScannerViewController: UIViewController {
     
     /// The original bar style that was set by the host app
     private var originalBarStyle: UIBarStyle?
+
+    public var isManualFocussingEnabled: Bool = true
     
     lazy private var shutterButton: ShutterButton = {
         let button = ShutterButton()
@@ -71,7 +73,7 @@ public final class ScannerViewController: UIViewController {
         button.addTarget(self, action: #selector(cancelImageScannerController), for: .touchUpInside)
         return button
     }()
-    
+
     lazy private var autoScanButton: UIBarButtonItem = {
         let title = NSLocalizedString("wescan.scanning.auto", tableName: nil, bundle: Bundle(for: ScannerViewController.self), value: "Auto", comment: "The auto button state")
         let button = UIBarButtonItem(title: title, style: .plain, target: self, action: #selector(toggleAutoScan))
@@ -94,6 +96,41 @@ public final class ScannerViewController: UIViewController {
         activityIndicator.translatesAutoresizingMaskIntoConstraints = false
         return activityIndicator
     }()
+
+    lazy private var buttonsStackView: UIStackView = {
+        let view = UIStackView(frame: .zero)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.distribution = .equalSpacing
+        view.spacing = 10
+        view.alignment = .leading
+        view.axis = .vertical
+        return view
+    }()
+
+    public var extraButtons: [ScannerViewControllerButtonConfiguration] = [] {
+        didSet {
+            let buttonViews = extraButtons.map { $0.provideButton() }
+
+            guard buttonsStackView.subviews != buttonViews else {
+                return
+            }
+
+            // Remove views that are not contained anymore
+            buttonViews.forEach { button in
+                if !buttonsStackView.subviews.contains(button) {
+                    button.removeFromSuperview()
+                }
+            }
+
+            // Add new views
+            buttonViews.enumerated().forEach { idx, button in
+                buttonsStackView.insertArrangedSubview(button, at: idx)
+            }
+
+            buttonsStackView.setNeedsLayout()
+            buttonsStackView.layoutIfNeeded()
+        }
+    }
 
     // MARK: - Life Cycle
 
@@ -169,6 +206,7 @@ public final class ScannerViewController: UIViewController {
         view.addSubview(cancelButton)
         view.addSubview(shutterButton)
         view.addSubview(activityIndicator)
+        view.addSubview(buttonsStackView)
     }
     
     private func setupNavigationBar() {
@@ -187,6 +225,7 @@ public final class ScannerViewController: UIViewController {
         var cancelButtonConstraints = [NSLayoutConstraint]()
         var shutterButtonConstraints = [NSLayoutConstraint]()
         var activityIndicatorConstraints = [NSLayoutConstraint]()
+        var buttonsStackViewConstraints = [NSLayoutConstraint]()
         
         quadViewConstraints = [
             quadView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -205,10 +244,16 @@ public final class ScannerViewController: UIViewController {
             activityIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             activityIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ]
+
+        buttonsStackViewConstraints = [
+            buttonsStackView.leadingAnchor.constraint(equalTo: shutterButton.trailingAnchor, constant: 24.0),
+            buttonsStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24.0),
+            buttonsStackView.bottomAnchor.constraint(equalTo: shutterButton.bottomAnchor, constant: -4)
+        ]
         
         if #available(iOS 11.0, *) {
             cancelButtonConstraints = [
-                cancelButton.leftAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leftAnchor, constant: 24.0),
+                cancelButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 24.0),
                 cancelButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 100),
                 cancelButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 60),
                 cancelButton.centerYAnchor.constraint(equalTo: shutterButton.centerYAnchor)
@@ -218,7 +263,7 @@ public final class ScannerViewController: UIViewController {
             shutterButtonConstraints.append(shutterButtonBottomConstraint)
         } else {
             cancelButtonConstraints = [
-                cancelButton.leftAnchor.constraint(equalTo: view.leftAnchor, constant: 24.0),
+                cancelButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24.0),
                 view.bottomAnchor.constraint(equalTo: cancelButton.bottomAnchor, constant: (65.0 / 2) - 10.0)
             ]
             
@@ -226,7 +271,7 @@ public final class ScannerViewController: UIViewController {
             shutterButtonConstraints.append(shutterButtonBottomConstraint)
         }
         
-        NSLayoutConstraint.activate(quadViewConstraints + cancelButtonConstraints + shutterButtonConstraints + activityIndicatorConstraints)
+        NSLayoutConstraint.activate(quadViewConstraints + cancelButtonConstraints + shutterButtonConstraints + activityIndicatorConstraints + buttonsStackViewConstraints)
     }
     
     // MARK: - Tap to Focus
@@ -249,6 +294,8 @@ public final class ScannerViewController: UIViewController {
     
     override public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesBegan(touches, with: event)
+
+        guard isManualFocussingEnabled else { return }
         
         guard  let touch = touches.first else { return }
         let touchPoint = touch.location(in: view)
@@ -362,4 +409,12 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
         quadView.drawQuadrilateral(quad: transformedQuad, animated: true)
     }
     
+}
+
+public struct ScannerViewControllerButtonConfiguration {
+    let provideButton: () -> UIButton
+
+    public init(provideButton: @escaping () -> UIButton) {
+        self.provideButton = provideButton
+    }
 }
