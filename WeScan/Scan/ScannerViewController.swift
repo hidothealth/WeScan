@@ -273,6 +273,10 @@ public final class ScannerViewController: UIViewController {
         
         NSLayoutConstraint.activate(quadViewConstraints + cancelButtonConstraints + shutterButtonConstraints + activityIndicatorConstraints + buttonsStackViewConstraints)
     }
+
+    public func stop() {
+        captureSessionManager?.stop()
+    }
     
     // MARK: - Tap to Focus
     
