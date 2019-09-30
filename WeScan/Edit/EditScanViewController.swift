@@ -41,6 +41,10 @@ public final class EditScanViewController: UIViewController {
         let title = NSLocalizedString("wescan.edit.button.next", tableName: nil, bundle: Bundle(for: EditScanViewController.self), value: "Next", comment: "A generic next button")
         let button = UIBarButtonItem(title: title, style: .plain, target: self, action: #selector(pushReviewController))
         button.tintColor = navigationController?.navigationBar.tintColor
+        button.setTitleTextAttributes(
+            [.foregroundColor: UIColor.white],
+            for: .normal
+        )
         return button
     }()
 
@@ -94,6 +98,15 @@ public final class EditScanViewController: UIViewController {
         navigationController?.navigationBar.setBackgroundImage(UIImage(), for: .default)
         navigationController?.navigationBar.shadowImage = UIImage()
         navigationController?.navigationBar.isTranslucent = true
+
+        if #available(iOS 13.0, *) { } else {
+            navigationController?.navigationBar.titleTextAttributes = [.foregroundColor: UIColor.white]
+
+            navigationItem.backBarButtonItem?.setTitleTextAttributes(
+                [.foregroundColor: UIColor.white],
+                for: .normal
+            )
+        }
     }
     
     override public func viewWillDisappear(_ animated: Bool) {
